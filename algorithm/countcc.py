@@ -1,14 +1,30 @@
-from algorithm.traverse import BFS
+from collections import deque
 from struct.union_find import UnionFind
 
 def count_connected_components_bfs(graph):
+    nodes = list(graph.all_nodes())
+    if not nodes:
+        return 0
+
     seen = set()
     count = 0
-    for node in graph.all_nodes():
-        if node not in seen:
-            count += 1
-            _, component_nodes = BFS(graph, node)
-            seen.update(component_nodes)
+    neighbors = graph.neighbors
+
+    for node in nodes:
+        if node in seen:
+            continue
+
+        count += 1
+        q = deque([node])
+        seen.add(node)
+
+        while q:
+            u = q.popleft()
+            for v in neighbors(u):
+                if v not in seen:
+                    seen.add(v)
+                    q.append(v)
+
     return count
 
 def count_connected_components_uf(graph):

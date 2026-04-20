@@ -150,18 +150,30 @@ class GraphExplorerApp:
 
     def _dfs_with_parent(self, graph, start):
         order = []
-        stack = [start]
-        seen = {start}
-        parent = {start: None}
+        seen = set()
+        parent = {}
+        nodes = list(graph.all_nodes())
 
-        while stack:
-            u = stack.pop()
-            order.append(u)
-            for v in reversed(list(graph.neighbors(u))):
-                if v not in seen:
-                    seen.add(v)
-                    parent[v] = u
-                    stack.append(v)
+        if not nodes:
+            return order, parent
+
+        if start not in nodes:
+            start = nodes[0]
+
+        seeds = [start] + [node for node in nodes if node != start]
+        for seed in seeds:
+            if seed not in seen:
+                stack = [seed]
+                seen.add(seed)
+                parent[seed] = None
+                while stack:
+                    u = stack.pop()
+                    order.append(u)
+                    for v in reversed(list(graph.neighbors(u))):
+                        if v not in seen:
+                            seen.add(v)
+                            parent[v] = u
+                            stack.append(v)
 
         return order, parent
 
@@ -287,27 +299,28 @@ class GraphExplorerApp:
         else:
             adj_dict, _ = self.graph_dict.get_struct()
             items = list(adj_dict.items())[:5]
-            self.visual_canvas.create_text(30, 30, anchor="nw", fill="#00ff00", font=("Consolas", 12, "bold"), text="Dictionary (Linked-List Style) - First 5")
+            self.visual_canvas.create_text(30, 30, anchor="nw", fill="#00ff00", font=("Consolas", 12, "bold"), text="Dictionary (First 5 keys, First 5 neighbors)")
 
             row_y = 90
             row_gap = 90
             for node, neighbors in items:
+                unique_neighbors = list(dict.fromkeys(neighbors))
                 self.visual_canvas.create_rectangle(40, row_y - 22, 110, row_y + 22, fill="#5c2d91", outline="#dddddd")
                 self.visual_canvas.create_text(75, row_y, text=str(node), fill="white", font=("Arial", 10, "bold"))
 
                 x = 145
-                for nei in neighbors[:4]:
+                for nei in unique_neighbors[:5]:
                     self.visual_canvas.create_line(x - 15, row_y, x, row_y, fill="#cccccc", width=2, arrow=tk.LAST)
                     self.visual_canvas.create_rectangle(x, row_y - 18, x + 70, row_y + 18, fill="#2d6cdf", outline="#dddddd")
                     self.visual_canvas.create_text(x + 35, row_y, text=str(nei), fill="white", font=("Arial", 9, "bold"))
                     x += 95
 
-                if len(neighbors) > 4:
+                if len(unique_neighbors) > 5:
                     self.visual_canvas.create_text(x, row_y, text="...", fill="#dddddd", font=("Arial", 12, "bold"))
 
                 row_y += row_gap
 
-            self.log_console("Displayed dictionary linked-list style preview (first 5 items).")
+            self.log_console("Displayed dictionary preview (first 5 keys, first 5 neighbors each).")
             self.log_console(f"Show data time: {time.perf_counter() - start_t:.4f}s")
 
     def run_bfs(self):
@@ -363,23 +376,33 @@ class GraphExplorerApp:
         self.log_console(f"DFS time: {time.perf_counter() - start_t:.4f}s")
 
     def count_cc(self):
+        self.log_console("CC Compare invoked.")
         if not self.graph:
             self.log_console("No graph loaded. Please load data first.")
             return
-            
+
         self.log_console("Calculating Connected Components...")
         self.log_visual("Calculating Connected Components...")
 
-        bfs_t0 = time.perf_counter()
-        cc_bfs = count_connected_components_bfs(self.graph)
-        bfs_dt = time.perf_counter() - bfs_t0
+        try:
+            bfs_t0 = time.perf_counter()
+            cc_bfs = count_connected_components_bfs(self.graph)
+            bfs_dt = time.perf_counter() - bfs_t0
+        except Exception as e:
+            self.log_console(f"BFS CC computation failed: {e}")
+            return
 
-        uf_t0 = time.perf_counter()
-        cc_uf = count_connected_components_uf(self.graph)
-        uf_dt = time.perf_counter() - uf_t0
+        try:
+            uf_t0 = time.perf_counter()
+            cc_uf = count_connected_components_uf(self.graph)
+            uf_dt = time.perf_counter() - uf_t0
+        except Exception as e:
+            self.log_console(f"Union-Find CC computation failed: {e}")
+            return
 
         self.log_console(f"CC (BFS): {cc_bfs} | time: {bfs_dt:.4f}s")
         self.log_console(f"CC (Union-Find): {cc_uf} | time: {uf_dt:.4f}s")
+
         self.clear_canvas()
         self.visual_canvas.create_text(40, 70, anchor="nw", fill="#00ff00", font=("Consolas", 16, "bold"), text="Connected Component Result")
         self.visual_canvas.create_text(40, 130, anchor="nw", fill="white", font=("Consolas", 14), text=f"BFS: {cc_bfs} ({bfs_dt:.4f}s)")
